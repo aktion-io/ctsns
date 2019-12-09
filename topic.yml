@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  TopicName:
+    Type: String
+    Default: CertificateTransparency
+Resources:
+  Topic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Ref TopicName
+  Policy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref Topic]
+      PolicyDocument:
+        Id: Policy
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowPublicAccessToFreeProtocols
+            Effect: Allow
+            Principal: "*"
+            Action: sns:Subscribe
+            Resource: "*"
+            Condition:
+              StringEquals:
+                sns:Protocol: [lambda, sqs] # these are free for us
+Outputs:
+  TopicArn:
+    Value: !Ref Topic

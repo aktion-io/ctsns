@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  Image:
+    Type: String
+  Cluster:
+    Type: String
+    Default: default
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+  TopicArn:
+    Type: String
+Resources:
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: ctsns
+      TaskRoleArn: !Ref TaskRole
+      Volumes: []
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities: [FARGATE]
+      ExecutionRoleArn: !Ref ExecutionRole
+      ContainerDefinitions:
+        - Name: ctsns
+          Image: !Ref Image
+          Environment:
+            - Name: TOPIC_ARN
+              Value: !Ref TopicArn
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+          Secrets:
+            - Name: HONEYCOMB_APIKEY
+              ValueFrom: /ctsns/HONEYCOMB_APIKEY
+            - Name: HONEYCOMB_DATASET
+              ValueFrom: /ctsns/HONEYCOMB_DATASET
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-create-group: "true"
+              awslogs-region: !Ref AWS::Region
+              awslogs-group: !Ref AWS::StackName
+              awslogs-stream-prefix: ctsns
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: AllowDynamo
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Resource: !Ref TopicArn
+                Action: sns:Publish
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: [ecs-tasks.amazonaws.com]
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: AllowLogGroupCreate
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: logs:CreateLogGroup
+                Resource: "*"
+              - Effect: Allow
+                Action: ssm:GetParameters
+                Resource: "*"
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 1
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets: !Ref SubnetIds
