@@ -19,6 +19,21 @@ The SNS topic ARN is `TODO`. You can subscribe either Lambda functions or SQS qu
 to it. Webhooks, SMS and email are unsupported as they cost me extra money and I'm
 doing this out of my own pocket. 
 
+There are about 100,000 - 120,000 messages published to the topic per hour. If 
+you are only interested in a subset, you can apply a filter to your subscription.
+SNS only supports exact string matches and *prefix* string matches. For this 
+reason, the domains are added as a `String.Array` and each domain is written in
+reverse DNS order, e.g. `www.google.com` becomes `com.google.www`. This makes
+it possible to subscribe to all `com.google.` certificates using a filter like:
+
+```json
+{
+  "reverse.dns": [
+    {"prefix": "com.google."}
+  ]
+}
+```
+
 ## Self-managed
 
 If you *need* those additional SNS subscriber types, this project is open source
